@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =========================
+// ENUM
+// =========================
+
+enum AssetStatus {
+  AVAILABLE
+  BORROWED
+  MAINTENANCE
+  DAMAGED
+}
+
+enum BorrowingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BORROWED
+  PARTIALLY_RETURNED
+  RETURNED
+}
+
+// =========================
+// ROLES
+// =========================
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =========================
+// USERS
+// =========================
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  roleId       String
+
+  role         Role     @relation(fields: [roleId], references: [id])
+  borrowings   Borrowing[] @relation("Borrower")
+  approvals    Borrowing[] @relation("Approver")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// =========================
+// CATEGORIES
+// =========================
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+
+  assets      Asset[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =========================
+// LOCATIONS
+// =========================
+
+model Location {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+
+  assets      Asset[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =========================
+// ASSETS
+// =========================
+
+model Asset {
+  id              String      @id @default(uuid())
+  code            String      @unique
+  name            String
+  description     String?
+  brand           String?
+  serialNumber    String?
+  acquisitionDate DateTime?
+  purchasePrice   Decimal?    @db.Decimal(14, 2)
+  condition       String      @default("BAIK")
+  status          AssetStatus @default(AVAILABLE)
+
+  categoryId      String
+  locationId      String
+
+  category        Category    @relation(fields: [categoryId], references: [id])
+  location        Location    @relation(fields: [locationId], references: [id])
+  borrowingItems BorrowingItem[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// =========================
+// BORROWINGS
+// =========================
+
+model Borrowing {
+  id          String          @id @default(uuid())
+  borrowerId  String
+  approverId  String?
+
+  purpose     String
+  borrowingDate DateTime
+  dueDate     DateTime
+  approvedAt  DateTime?
+  status      BorrowingStatus @default(PENDING)
+  notes       String?
+
+  borrower    User            @relation("Borrower", fields: [borrowerId], references: [id])
+  approver    User?           @relation("Approver", fields: [approverId], references: [id])
+
+  items       BorrowingItem[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+// =========================
+// BORROWING ITEMS
+// =========================
+
+model BorrowingItem {
+  id               String    @id @default(uuid())
+  borrowingId      String
+  assetId          String
+
+  conditionOnBorrow String   @default("BAIK")
+  conditionOnReturn String?
+  returnedAt       DateTime?
+  notes             String?
+
+  borrowing         Borrowing @relation(fields: [borrowingId], references: [id], onDelete: Cascade)
+  asset             Asset     @relation(fields: [assetId], references: [id])
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([borrowingId, assetId])
+}
