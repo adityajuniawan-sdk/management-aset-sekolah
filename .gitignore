@@ -6,3 +6,15 @@ dist/
 build/
 coverage/
 .DS_Store
+
+# Local development tools
+/backend/.agents/
+/backend/.claude/
+/backend/.windsurf/
+/backend/skills-lock.json
+
+# Temporary and legacy files
+/backend/auth.js
+/backend/seed-admin-test.js
+/backend/seed-petugas-test.js
+/backend/src/
