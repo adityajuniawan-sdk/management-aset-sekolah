@@ -1,3 +1,4 @@
+
 const express = require("express");
 const prisma = require("../db");
 const authenticateToken = require("../middleware/auth");
@@ -12,11 +13,15 @@ const assetStatuses = [
   "DAMAGED",
 ];
 
-// GET - Melihat semua aset
+// =========================
+// GET - MELIHAT SEMUA ASET
+// =========================
+
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const assets = await prisma.asset.findMany({
       include: {
+        schoolUnit: true,
         category: true,
         location: true,
       },
@@ -31,6 +36,7 @@ router.get("/", authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error("ERROR GET ASSET:", error);
+
     res.status(500).json({
       pesan: "Terjadi kesalahan pada server",
       data: null,
@@ -38,7 +44,10 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-// POST - Menambahkan aset
+// =========================
+// POST - MENAMBAHKAN ASET
+// =========================
+
 router.post(
   "/",
   authenticateToken,
@@ -73,19 +82,24 @@ router.post(
 
       const optionalTexts = [description, brand, serialNumber];
 
-      if (optionalTexts.some(
-        value => value !== undefined &&
-          value !== null &&
-          typeof value !== "string"
-      )) {
+      if (
+        optionalTexts.some(
+          value =>
+            value !== undefined &&
+            value !== null &&
+            typeof value !== "string"
+        )
+      ) {
         return res.status(400).json({
           pesan: "Data deskripsi, merek, dan nomor seri harus berupa teks",
           data: null,
         });
       }
 
-      if (condition !== undefined &&
-        (typeof condition !== "string" || !condition.trim())) {
+      if (
+        condition !== undefined &&
+        (typeof condition !== "string" || !condition.trim())
+      ) {
         return res.status(400).json({
           pesan: "Kondisi aset tidak valid",
           data: null,
@@ -102,8 +116,10 @@ router.post(
       if (
         purchasePrice !== undefined &&
         purchasePrice !== null &&
-        (!Number.isFinite(Number(purchasePrice)) ||
-          Number(purchasePrice) < 0)
+        (
+          !Number.isFinite(Number(purchasePrice)) ||
+          Number(purchasePrice) < 0
+        )
       ) {
         return res.status(400).json({
           pesan: "Harga pembelian tidak valid",
@@ -124,18 +140,29 @@ router.post(
         }
       }
 
-      const [category, location] = await Promise.all([
+      // Cari kategori, lokasi, dan unit SMK.
+      const [category, location, schoolUnit] = await Promise.all([
         prisma.category.findUnique({
           where: { id: categoryId },
         }),
         prisma.location.findUnique({
           where: { id: locationId },
         }),
+        prisma.schoolUnit.findUnique({
+          where: { code: "SMK" },
+        }),
       ]);
 
       if (!category || !location) {
         return res.status(400).json({
           pesan: "Kategori atau lokasi tidak ditemukan",
+          data: null,
+        });
+      }
+
+      if (!schoolUnit) {
+        return res.status(500).json({
+          pesan: "Data SMK Guna Cipta belum tersedia",
           data: null,
         });
       }
@@ -154,10 +181,13 @@ router.post(
               : null,
           condition: condition?.trim() || "BAIK",
           status: status || "AVAILABLE",
+
+          schoolUnitId: schoolUnit.id,
           categoryId,
           locationId,
         },
         include: {
+          schoolUnit: true,
           category: true,
           location: true,
         },
@@ -176,6 +206,7 @@ router.post(
       }
 
       console.error("ERROR CREATE ASSET:", error);
+
       res.status(500).json({
         pesan: "Terjadi kesalahan pada server",
         data: null,
@@ -184,7 +215,10 @@ router.post(
   }
 );
 
-// PATCH - Mengedit aset
+// =========================
+// PATCH - MENGEDIT ASET
+// =========================
+
 router.patch(
   "/:id",
   authenticateToken,
@@ -220,35 +254,44 @@ router.patch(
       }
 
       if (req.body.categoryId !== undefined) {
-        if (typeof req.body.categoryId !== "string" ||
-          !req.body.categoryId.trim()) {
+        if (
+          typeof req.body.categoryId !== "string" ||
+          !req.body.categoryId.trim()
+        ) {
           return res.status(400).json({
             pesan: "Kategori tidak valid",
             data: null,
           });
         }
+
         data.categoryId = req.body.categoryId;
       }
 
       if (req.body.locationId !== undefined) {
-        if (typeof req.body.locationId !== "string" ||
-          !req.body.locationId.trim()) {
+        if (
+          typeof req.body.locationId !== "string" ||
+          !req.body.locationId.trim()
+        ) {
           return res.status(400).json({
             pesan: "Lokasi tidak valid",
             data: null,
           });
         }
+
         data.locationId = req.body.locationId;
       }
 
       if (req.body.condition !== undefined) {
-        if (typeof req.body.condition !== "string" ||
-          !req.body.condition.trim()) {
+        if (
+          typeof req.body.condition !== "string" ||
+          !req.body.condition.trim()
+        ) {
           return res.status(400).json({
             pesan: "Kondisi tidak valid",
             data: null,
           });
         }
+
         data.condition = req.body.condition.trim();
       }
 
@@ -259,6 +302,7 @@ router.patch(
             data: null,
           });
         }
+
         data.status = req.body.status;
       }
 
@@ -282,10 +326,7 @@ router.patch(
       if (req.body.purchasePrice !== undefined) {
         const price = req.body.purchasePrice;
 
-        if (
-          price === null ||
-          price === ""
-        ) {
+        if (price === null || price === "") {
           data.purchasePrice = null;
         } else if (
           !Number.isFinite(Number(price)) ||
@@ -311,6 +352,7 @@ router.patch(
         where: { id: req.params.id },
         data,
         include: {
+          schoolUnit: true,
           category: true,
           location: true,
         },
@@ -343,6 +385,7 @@ router.patch(
       }
 
       console.error("ERROR UPDATE ASSET:", error);
+
       res.status(500).json({
         pesan: "Terjadi kesalahan pada server",
         data: null,
@@ -351,7 +394,10 @@ router.patch(
   }
 );
 
-// DELETE - Menghapus aset
+// =========================
+// DELETE - MENGHAPUS ASET
+// =========================
+
 router.delete(
   "/:id",
   authenticateToken,
@@ -382,6 +428,7 @@ router.delete(
       }
 
       console.error("ERROR DELETE ASSET:", error);
+
       res.status(500).json({
         pesan: "Terjadi kesalahan pada server",
         data: null,

@@ -43,18 +43,34 @@ model Role {
 // =========================
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  password     String
-  roleId       String
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+  roleId   String
 
-  role         Role     @relation(fields: [roleId], references: [id])
-  borrowings   Borrowing[] @relation("Borrower")
-  approvals    Borrowing[] @relation("Approver")
+  role       Role        @relation(fields: [roleId], references: [id])
+  borrowings Borrowing[] @relation("Borrower")
+  approvals  Borrowing[] @relation("Approver")
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =========================
+// SCHOOL UNITS
+// =========================
+
+model SchoolUnit {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  name        String  @unique
+  description String?
+
+  assets Asset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =========================
@@ -62,14 +78,14 @@ model User {
 // =========================
 
 model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String  @id @default(uuid())
+  name        String  @unique
   description String?
 
-  assets      Asset[]
+  assets Asset[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =========================
@@ -77,14 +93,14 @@ model Category {
 // =========================
 
 model Location {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
   description String?
 
-  assets      Asset[]
+  assets Asset[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =========================
@@ -103,15 +119,18 @@ model Asset {
   condition       String      @default("BAIK")
   status          AssetStatus @default(AVAILABLE)
 
-  categoryId      String
-  locationId      String
+  categoryId   String
+  locationId   String
+  schoolUnitId String?
 
-  category        Category    @relation(fields: [categoryId], references: [id])
-  location        Location    @relation(fields: [locationId], references: [id])
+  category   Category    @relation(fields: [categoryId], references: [id])
+  location   Location    @relation(fields: [locationId], references: [id])
+  schoolUnit SchoolUnit? @relation(fields: [schoolUnitId], references: [id], onDelete: Restrict)
+
   borrowingItems BorrowingItem[]
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =========================
@@ -119,24 +138,24 @@ model Asset {
 // =========================
 
 model Borrowing {
-  id          String          @id @default(uuid())
-  borrowerId  String
-  approverId  String?
+  id         String  @id @default(uuid())
+  borrowerId String
+  approverId String?
 
-  purpose     String
+  purpose       String
   borrowingDate DateTime
-  dueDate     DateTime
-  approvedAt  DateTime?
-  status      BorrowingStatus @default(PENDING)
-  notes       String?
+  dueDate       DateTime
+  approvedAt    DateTime?
+  status        BorrowingStatus @default(PENDING)
+  notes         String?
 
-  borrower    User            @relation("Borrower", fields: [borrowerId], references: [id])
-  approver    User?           @relation("Approver", fields: [approverId], references: [id])
+  borrower User  @relation("Borrower", fields: [borrowerId], references: [id])
+  approver User? @relation("Approver", fields: [approverId], references: [id])
 
-  items       BorrowingItem[]
+  items BorrowingItem[]
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =========================
@@ -144,20 +163,20 @@ model Borrowing {
 // =========================
 
 model BorrowingItem {
-  id               String    @id @default(uuid())
-  borrowingId      String
-  assetId          String
+  id          String @id @default(uuid())
+  borrowingId String
+  assetId     String
 
-  conditionOnBorrow String   @default("BAIK")
+  conditionOnBorrow String    @default("BAIK")
   conditionOnReturn String?
-  returnedAt       DateTime?
+  returnedAt        DateTime?
   notes             String?
 
-  borrowing         Borrowing @relation(fields: [borrowingId], references: [id], onDelete: Cascade)
-  asset             Asset     @relation(fields: [assetId], references: [id])
+  borrowing Borrowing @relation(fields: [borrowingId], references: [id], onDelete: Cascade)
+  asset     Asset     @relation(fields: [assetId], references: [id])
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([borrowingId, assetId])
 }

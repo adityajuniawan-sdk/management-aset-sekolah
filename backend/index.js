@@ -9,6 +9,7 @@ const categoryRoutes = require("./routes/categories");
 const locationRoutes = require("./routes/locations");
 const assetRoutes = require("./routes/assets");
 const borrowingRoutes = require("./routes/borrowings");
+const reportRoutes = require("./routes/reports");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/borrowings", borrowingRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Route utama
 app.get("/", (req, res) => {

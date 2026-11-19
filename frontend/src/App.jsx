@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import AssetsPage from "./pages/AssetsPage";
 import CatalogPage from "./pages/CatalogPage";
+import BorrowingsPage from "./pages/BorrowingsPage";
+import ReturnsPage from "./pages/ReturnsPage";
+import ReportsPage from "./pages/ReportsPage";
 import { apiRequest } from "./services/api";
 
 const API_URL = "http://localhost:3000/api";
@@ -13,9 +16,9 @@ const menuItems = [
   "Lokasi",
   "Peminjaman",
   "Pengembalian",
+  "Laporan",
 ];
 
-// Menyamakan format role dari login dan /auth/me
 function normalizeUser(userData) {
   if (!userData) return null;
 
@@ -28,6 +31,71 @@ function normalizeUser(userData) {
     ...userData,
     role: String(role || "").trim().toUpperCase(),
   };
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) return "Tanggal tidak tersedia";
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Tanggal tidak tersedia";
+  }
+
+  return date.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getBorrowingStatus(status) {
+  const statusLabels = {
+    PENDING: "Menunggu persetujuan",
+    APPROVED: "Disetujui",
+    REJECTED: "Ditolak",
+    BORROWED: "Sedang dipinjam",
+    PARTIALLY_RETURNED: "Dikembalikan sebagian",
+    RETURNED: "Sudah dikembalikan",
+  };
+
+  return statusLabels[status] || "Status peminjaman diperbarui";
+}
+
+function getRecentActivities(assets, borrowings) {
+  const assetActivities = assets.map((asset) => ({
+    id: `asset-${asset.id}`,
+    title: "Aset ditambahkan",
+    description: `${asset.name || "Aset"} (${asset.code || "-"})`,
+    date: asset.createdAt || asset.acquisitionDate,
+    type: "asset",
+  }));
+
+  const borrowingActivities = borrowings.map((borrowing) => {
+    const borrowerName =
+      borrowing.borrower?.name ||
+      borrowing.borrowerName ||
+      "Pengguna";
+
+    return {
+      id: `borrowing-${borrowing.id}`,
+      title: getBorrowingStatus(borrowing.status),
+      description: `${borrowerName} • ${borrowing.purpose || "Peminjaman aset"}`,
+      date: borrowing.createdAt || borrowing.borrowingDate,
+      type: "borrowing",
+    };
+  });
+
+  return [...assetActivities, ...borrowingActivities]
+    .filter((activity) => activity.date)
+    .sort(
+      (a, b) =>
+        new Date(b.date).getTime() -
+        new Date(a.date).getTime()
+    )
+    .slice(0, 6);
 }
 
 function App() {
@@ -157,6 +225,11 @@ function App() {
     },
   ];
 
+  const recentActivities = getRecentActivities(
+    assets,
+    borrowings
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -170,24 +243,34 @@ function App() {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-5">
         <form
           onSubmit={handleLogin}
-          className="bg-white w-full max-w-md p-8 rounded-2xl shadow-sm"
+          className="bg-white w-full max-w-md p-8 rounded-2xl shadow-sm border border-gray-100"
         >
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-[#800020]">
-              GUNA CIPTA
+            <div className="w-16 h-16 bg-[#800020] text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <span className="text-2xl font-bold">GC</span>
+            </div>
+
+            <p className="text-xs font-bold tracking-widest text-[#800020]">
+              YAYASAN LEMBAGA GUNA CIPTA
+            </p>
+
+            <h1 className="text-xl font-bold text-gray-900 mt-2">
+              SMK GUNA CIPTA
             </h1>
 
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 mt-1">
               SCHOOL ASSET MANAGEMENT
             </p>
 
-            <h2 className="text-xl font-bold mt-8">
-              Login SnapAsset
-            </h2>
+            <div className="border-t border-gray-100 mt-6 pt-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                Login SnapAsset
+              </h2>
 
-            <p className="text-sm text-gray-500 mt-1">
-              Masuk untuk mengelola aset sekolah
-            </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Sistem Informasi Manajemen Aset Sekolah
+              </p>
+            </div>
           </div>
 
           {error && (
@@ -225,13 +308,13 @@ function App() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#800020] text-white p-3 rounded-lg font-semibold hover:bg-[#650019] disabled:opacity-50"
+            className="w-full bg-[#800020] text-white p-3 rounded-lg font-semibold hover:bg-[#650019] disabled:opacity-50 transition"
           >
             Masuk
           </button>
 
           <p className="text-center text-xs text-gray-400 mt-6">
-            © 2026 GUNA CIPTA - SnapAsset
+            © 2026 Yayasan Lembaga Guna Cipta
           </p>
         </form>
       </div>
@@ -242,16 +325,34 @@ function App() {
     <div className="min-h-screen bg-gray-100 flex">
       <aside className="w-64 bg-[#800020] text-white p-6 hidden md:flex md:flex-col">
         <div className="mb-10">
-          <h1 className="text-2xl font-bold tracking-wide">
-            GUNA CIPTA
-          </h1>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-white text-[#800020] rounded-xl flex items-center justify-center shrink-0">
+              <span className="text-lg font-bold">GC</span>
+            </div>
 
-          <p className="text-xs text-red-100 mt-1">
-            SCHOOL ASSET MANAGEMENT
-          </p>
+            <div>
+              <h1 className="text-sm font-bold tracking-wide">
+                YAYASAN LEMBAGA
+              </h1>
+
+              <h2 className="text-base font-bold">
+                GUNA CIPTA
+              </h2>
+            </div>
+          </div>
+
+          <div className="mt-5 border-t border-white/20 pt-4">
+            <p className="text-xs text-red-100">
+              SMK GUNA CIPTA
+            </p>
+
+            <p className="text-xs text-red-200 mt-1">
+              SCHOOL ASSET MANAGEMENT
+            </p>
+          </div>
         </div>
 
-        <p className="text-xs text-red-200 uppercase mb-4">
+        <p className="text-xs text-red-200 uppercase mb-4 tracking-wider">
           Menu Utama
         </p>
 
@@ -265,7 +366,7 @@ function App() {
               }}
               className={`w-full text-left p-3 rounded-lg transition ${
                 activePage === item
-                  ? "bg-white text-[#800020] font-semibold"
+                  ? "bg-white text-[#800020] font-semibold shadow-sm"
                   : "text-white hover:bg-white/10"
               }`}
             >
@@ -282,22 +383,30 @@ function App() {
           <p className="font-semibold mt-2">
             SnapAsset v1.0
           </p>
+
+          <p className="text-xs text-red-200 mt-1">
+            SMK Guna Cipta
+          </p>
         </div>
       </aside>
 
       <main className="flex-1 min-w-0 p-5 md:p-10">
         <header className="flex flex-wrap justify-between items-center gap-4 mb-10">
           <div>
+            <p className="text-xs font-semibold tracking-widest text-[#800020] mb-2">
+              SNAPASSET / SMK GUNA CIPTA
+            </p>
+
             <h2 className="text-2xl font-bold text-gray-900">
               {activePage}
             </h2>
 
             <p className="text-gray-500 mt-1">
-              Sistem Manajemen Aset GUNA CIPTA
+              Sistem Informasi Manajemen Aset Sekolah
             </p>
           </div>
 
-          <div className="bg-white px-5 py-3 rounded-xl shadow-sm">
+          <div className="bg-white px-5 py-3 rounded-xl shadow-sm border border-gray-100">
             <p className="font-semibold text-gray-800">
               {user.name}
             </p>
@@ -308,7 +417,7 @@ function App() {
 
             <button
               onClick={handleLogout}
-              className="text-xs text-[#800020] font-semibold mt-2"
+              className="text-xs text-[#800020] font-semibold mt-2 hover:underline"
             >
               Keluar
             </button>
@@ -323,6 +432,28 @@ function App() {
 
         {activePage === "Dashboard" && (
           <>
+            <section className="bg-[#800020] text-white p-7 md:p-9 rounded-2xl mb-8 shadow-sm">
+              <p className="text-xs tracking-widest text-red-100 font-semibold">
+                YAYASAN LEMBAGA GUNA CIPTA
+              </p>
+
+              <h3 className="text-2xl md:text-3xl font-bold mt-3">
+                Selamat Datang di SnapAsset
+              </h3>
+
+              <p className="text-sm text-red-100 mt-2 max-w-xl">
+                Sistem Informasi Manajemen Aset Sekolah
+                untuk membantu pengelolaan aset SMK Guna Cipta
+                secara terstruktur dan efisien.
+              </p>
+
+              <div className="mt-6 inline-flex items-center bg-white/10 border border-white/20 rounded-lg px-4 py-2">
+                <span className="text-sm font-semibold">
+                  SMK GUNA CIPTA
+                </span>
+              </div>
+            </section>
+
             <section className="mb-8">
               <h3 className="text-lg font-bold text-gray-900">
                 Ringkasan Aset
@@ -355,15 +486,66 @@ function App() {
             </section>
 
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-8">
-              <h3 className="text-lg font-bold text-gray-900">
-                Aktivitas Terbaru
-              </h3>
+              <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Aktivitas Terbaru
+                  </h3>
 
-              <div className="text-center py-12">
-                <p className="text-gray-400">
-                  Belum ada aktivitas.
-                </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Ringkasan data aset dan peminjaman terbaru.
+                  </p>
+                </div>
+
+                <span className="text-xs text-gray-400">
+                  Maksimal 6 aktivitas
+                </span>
               </div>
+
+              {recentActivities.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">
+                    Belum ada aktivitas.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {recentActivities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-4 py-4 first:pt-0 last:pb-0"
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                          activity.type === "asset"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-blue-50 text-blue-700"
+                        }`}
+                      >
+                        {activity.type === "asset" ? (
+                          <span className="text-lg">+</span>
+                        ) : (
+                          <span className="text-sm font-bold">P</span>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-gray-800">
+                          {activity.title}
+                        </p>
+
+                        <p className="text-sm text-gray-500 mt-1 break-words">
+                          {activity.description}
+                        </p>
+
+                        <p className="text-xs text-gray-400 mt-2">
+                          {formatDate(activity.date)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </>
         )}
@@ -389,31 +571,25 @@ function App() {
         )}
 
         {activePage === "Peminjaman" && (
-          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900">
-              Peminjaman
-            </h3>
-
-            <p className="text-sm text-gray-500 mt-2">
-              Halaman pengajuan, persetujuan, dan serah terima aset akan dibuat pada tahap berikutnya.
-            </p>
-          </section>
+          <BorrowingsPage
+            user={user}
+            onDataChange={loadDashboard}
+          />
         )}
 
         {activePage === "Pengembalian" && (
-          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900">
-              Pengembalian
-            </h3>
+          <ReturnsPage
+            user={user}
+            onDataChange={loadDashboard}
+          />
+        )}
 
-            <p className="text-sm text-gray-500 mt-2">
-              Halaman pencatatan pengembalian dan kondisi aset akan dibuat pada tahap berikutnya.
-            </p>
-          </section>
+        {activePage === "Laporan" && (
+          <ReportsPage user={user} />
         )}
 
         <footer className="text-center text-gray-400 text-xs mt-10">
-          © 2026 GUNA CIPTA - SnapAsset
+          © 2026 Yayasan Lembaga Guna Cipta • SnapAsset
         </footer>
       </main>
     </div>

@@ -1,3 +1,4 @@
+
 const authorizeRoles = require("../middleware/authorize");
 const express = require("express");
 const prisma = require("../db");
@@ -10,6 +11,17 @@ const activeStatuses = [
   "APPROVED",
   "BORROWED",
   "PARTIALLY_RETURNED",
+];
+
+const transactionOptions = {
+  maxWait: 15000,
+  timeout: 30000,
+};
+
+const assetStaff = [
+  "SUPER_ADMIN",
+  "ADMIN_SEKOLAH",
+  "PETUGAS_ASET",
 ];
 
 // GET - Melihat daftar peminjaman
@@ -58,14 +70,14 @@ router.get("/", authenticateToken, async (req, res) => {
       },
     });
 
-    res.json({
+    return res.json({
       pesan: "Data peminjaman berhasil diambil",
       data: borrowings,
     });
   } catch (error) {
     console.error("ERROR GET BORROWING:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       pesan: "Terjadi kesalahan pada server",
       data: null,
     });
@@ -90,7 +102,9 @@ router.post("/", authenticateToken, async (req, res) => {
       !dueDate ||
       !Array.isArray(assetIds) ||
       assetIds.length === 0 ||
-      !assetIds.every((id) => typeof id === "string" && id.trim())
+      !assetIds.every(
+        (id) => typeof id === "string" && id.trim()
+      )
     ) {
       return res.status(400).json({
         pesan: "Tujuan, tanggal, dan aset wajib diisi",
@@ -105,7 +119,11 @@ router.post("/", authenticateToken, async (req, res) => {
       });
     }
 
-    if (notes !== undefined && notes !== null && typeof notes !== "string") {
+    if (
+      notes !== undefined &&
+      notes !== null &&
+      typeof notes !== "string"
+    ) {
       return res.status(400).json({
         pesan: "Catatan harus berupa teks",
         data: null,
@@ -126,72 +144,75 @@ router.post("/", authenticateToken, async (req, res) => {
       });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Periksa apakah aset sedang dalam pengajuan atau peminjaman aktif
-      const reservedItems = await tx.borrowingItem.findMany({
-        where: {
-          assetId: { in: assetIds },
-          borrowing: {
-            status: { in: activeStatuses },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const reservedItems =
+          await tx.borrowingItem.findMany({
+            where: {
+              assetId: { in: assetIds },
+              borrowing: {
+                status: { in: activeStatuses },
+              },
+            },
+            select: {
+              assetId: true,
+            },
+          });
+
+        if (reservedItems.length > 0) {
+          return { type: "reserved" };
+        }
+
+        const availableAssets = await tx.asset.findMany({
+          where: {
+            id: { in: assetIds },
+            status: "AVAILABLE",
           },
-        },
-        select: {
-          assetId: true,
-        },
-      });
-
-      if (reservedItems.length > 0) {
-        return { type: "reserved" };
-      }
-
-      // Pastikan semua aset tersedia
-      const availableAssets = await tx.asset.findMany({
-        where: {
-          id: { in: assetIds },
-          status: "AVAILABLE",
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (availableAssets.length !== assetIds.length) {
-        return { type: "unavailable" };
-      }
-
-      const borrowing = await tx.borrowing.create({
-        data: {
-          borrowerId: req.user.id,
-          purpose: purpose.trim(),
-          borrowingDate: startDate,
-          dueDate: endDate,
-          notes: notes?.trim() || null,
-          status: "PENDING",
-          items: {
-            create: assetIds.map((assetId) => ({
-              assetId,
-              conditionOnBorrow: "BAIK",
-            })),
+          select: {
+            id: true,
           },
-        },
-        include: {
-          items: {
-            include: {
-              asset: true,
+        });
+
+        if (availableAssets.length !== assetIds.length) {
+          return { type: "unavailable" };
+        }
+
+        const borrowing = await tx.borrowing.create({
+          data: {
+            borrowerId: req.user.id,
+            purpose: purpose.trim(),
+            borrowingDate: startDate,
+            dueDate: endDate,
+            notes: notes?.trim() || null,
+            status: "PENDING",
+            items: {
+              create: assetIds.map((assetId) => ({
+                assetId,
+                conditionOnBorrow: "BAIK",
+              })),
             },
           },
-        },
-      });
+          include: {
+            items: {
+              include: {
+                asset: true,
+              },
+            },
+          },
+        });
 
-      return {
-        type: "created",
-        borrowing,
-      };
-    });
+        return {
+          type: "created",
+          borrowing,
+        };
+      },
+      transactionOptions
+    );
 
     if (result.type === "reserved") {
       return res.status(409).json({
-        pesan: "Salah satu aset sedang dalam pengajuan atau peminjaman aktif",
+        pesan:
+          "Salah satu aset sedang dalam pengajuan atau peminjaman aktif",
         data: null,
       });
     }
@@ -203,26 +224,25 @@ router.post("/", authenticateToken, async (req, res) => {
       });
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       pesan: "Pengajuan peminjaman berhasil dibuat",
       data: result.borrowing,
     });
   } catch (error) {
     console.error("ERROR CREATE BORROWING:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       pesan: "Terjadi kesalahan pada server",
       data: null,
     });
   }
 });
 
-
 // PATCH - Menyetujui atau menolak peminjaman
 router.patch(
   "/:id/decision",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...assetStaff),
   async (req, res) => {
     try {
       const { decision } = req.body;
@@ -234,75 +254,75 @@ router.patch(
         });
       }
 
-      const result = await prisma.$transaction(async (tx) => {
-        const borrowing = await tx.borrowing.findUnique({
-          where: {
-            id: req.params.id,
-          },
-          include: {
-            items: {
-              include: {
-                asset: true,
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const borrowing = await tx.borrowing.findUnique({
+            where: {
+              id: req.params.id,
+            },
+            include: {
+              items: {
+                include: {
+                  asset: true,
+                },
               },
             },
-          },
-        });
+          });
 
-        if (!borrowing) {
-          return { type: "not_found" };
-        }
+          if (!borrowing) {
+            return { type: "not_found" };
+          }
 
-        // Pengaju tidak boleh menyetujui pengajuannya sendiri
-        if (borrowing.borrowerId === req.user.id) {
-          return { type: "self_approval" };
-        }
+          if (borrowing.borrowerId === req.user.id) {
+            return { type: "self_approval" };
+          }
 
-        // Hanya pengajuan PENDING yang bisa diproses
-        if (borrowing.status !== "PENDING") {
-          return { type: "already_processed" };
-        }
+          if (borrowing.status !== "PENDING") {
+            return { type: "already_processed" };
+          }
 
-        // Pastikan semua aset masih tersedia sebelum disetujui
-        if (
-          decision === "APPROVED" &&
-          borrowing.items.some(
-            (item) => item.asset.status !== "AVAILABLE"
-          )
-        ) {
-          return { type: "unavailable" };
-        }
+          if (
+            decision === "APPROVED" &&
+            borrowing.items.some(
+              (item) => item.asset.status !== "AVAILABLE"
+            )
+          ) {
+            return { type: "unavailable" };
+          }
 
-        const updated = await tx.borrowing.update({
-          where: {
-            id: req.params.id,
-          },
-          data: {
-            status: decision,
-            approverId: req.user.id,
-            approvedAt:
-              decision === "APPROVED" ? new Date() : null,
-          },
-          include: {
-            borrower: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+          const updated = await tx.borrowing.update({
+            where: {
+              id: req.params.id,
+            },
+            data: {
+              status: decision,
+              approverId: req.user.id,
+              approvedAt:
+                decision === "APPROVED" ? new Date() : null,
+            },
+            include: {
+              borrower: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              items: {
+                include: {
+                  asset: true,
+                },
               },
             },
-            items: {
-              include: {
-                asset: true,
-              },
-            },
-          },
-        });
+          });
 
-        return {
-          type: "success",
-          borrowing: updated,
-        };
-      });
+          return {
+            type: "success",
+            borrowing: updated,
+          };
+        },
+        transactionOptions
+      );
 
       if (result.type === "not_found") {
         return res.status(404).json({
@@ -332,7 +352,7 @@ router.patch(
         });
       }
 
-      res.json({
+      return res.json({
         pesan:
           decision === "APPROVED"
             ? "Peminjaman berhasil disetujui"
@@ -342,7 +362,7 @@ router.patch(
     } catch (error) {
       console.error("ERROR BORROWING DECISION:", error);
 
-      res.status(500).json({
+      return res.status(500).json({
         pesan: "Terjadi kesalahan pada server",
         data: null,
       });
@@ -350,115 +370,170 @@ router.patch(
   }
 );
 
-
 // PATCH - Serah terima aset
 router.patch(
   "/:id/handover",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...assetStaff),
   async (req, res) => {
+    let assetIds = [];
+    let assetsChanged = false;
+
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        const borrowing = await tx.borrowing.findUnique({
-          where: { id: req.params.id },
-          include: {
-            items: true,
-          },
-        });
-
-        if (!borrowing) {
-          return { type: "not_found" };
-        }
-
-        if (borrowing.status !== "APPROVED") {
-          return { type: "invalid_status" };
-        }
-
-        if (borrowing.items.length === 0) {
-          return { type: "empty" };
-        }
-
-        const assetIds = borrowing.items.map(
-          (item) => item.assetId
-        );
-
-        const updatedAssets = await tx.asset.updateMany({
-          where: {
-            id: { in: assetIds },
-            status: "AVAILABLE",
-          },
-          data: {
-            status: "BORROWED",
-          },
-        });
-
-        if (updatedAssets.count !== assetIds.length) {
-          throw new Error("ASSET_NOT_AVAILABLE");
-        }
-
-        const updatedBorrowing = await tx.borrowing.update({
-          where: { id: req.params.id },
-          data: {
-            status: "BORROWED",
-          },
-          include: {
-            borrower: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-            items: {
-              include: {
-                asset: true,
-              },
-            },
-          },
-        });
-
-        return {
-          type: "success",
-          borrowing: updatedBorrowing,
-        };
+      const borrowing = await prisma.borrowing.findUnique({
+        where: {
+          id: req.params.id,
+        },
+        include: {
+          items: true,
+        },
       });
 
-      if (result.type === "not_found") {
+      if (!borrowing) {
         return res.status(404).json({
           pesan: "Peminjaman tidak ditemukan",
           data: null,
         });
       }
 
-      if (result.type === "invalid_status") {
+      if (borrowing.status !== "APPROVED") {
         return res.status(400).json({
           pesan: "Peminjaman belum disetujui",
           data: null,
         });
       }
 
-      if (result.type === "empty") {
+      if (borrowing.items.length === 0) {
         return res.status(400).json({
           pesan: "Tidak ada aset dalam peminjaman",
           data: null,
         });
       }
 
-      res.json({
-        pesan: "Serah terima aset berhasil",
-        data: result.borrowing,
+      assetIds = borrowing.items.map((item) => item.assetId);
+
+      const availableAssets = await prisma.asset.findMany({
+        where: {
+          id: {
+            in: assetIds,
+          },
+          status: "AVAILABLE",
+        },
+        select: {
+          id: true,
+        },
       });
-    } catch (error) {
-      if (error.message === "ASSET_NOT_AVAILABLE") {
+
+      if (availableAssets.length !== assetIds.length) {
         return res.status(409).json({
           pesan: "Ada aset yang sudah tidak tersedia",
           data: null,
         });
       }
 
+      const updatedAssets = await prisma.asset.updateMany({
+        where: {
+          id: {
+            in: assetIds,
+          },
+          status: "AVAILABLE",
+        },
+        data: {
+          status: "BORROWED",
+        },
+      });
+
+      if (updatedAssets.count !== assetIds.length) {
+        return res.status(409).json({
+          pesan: "Ada aset yang sudah tidak tersedia",
+          data: null,
+        });
+      }
+
+      assetsChanged = true;
+
+      const updatedBorrowing = await prisma.borrowing.updateMany({
+        where: {
+          id: req.params.id,
+          status: "APPROVED",
+        },
+        data: {
+          status: "BORROWED",
+        },
+      });
+
+      if (updatedBorrowing.count !== 1) {
+        await prisma.asset.updateMany({
+          where: {
+            id: {
+              in: assetIds,
+            },
+            status: "BORROWED",
+          },
+          data: {
+            status: "AVAILABLE",
+          },
+        });
+
+        assetsChanged = false;
+
+        return res.status(409).json({
+          pesan:
+            "Status peminjaman berubah. Silakan muat ulang halaman",
+          data: null,
+        });
+      }
+
+      const result = await prisma.borrowing.findUnique({
+        where: {
+          id: req.params.id,
+        },
+        include: {
+          borrower: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          items: {
+            include: {
+              asset: true,
+            },
+          },
+        },
+      });
+
+      return res.json({
+        pesan: "Serah terima aset berhasil",
+        data: result,
+      });
+    } catch (error) {
       console.error("ERROR HANDOVER:", error);
 
-      res.status(500).json({
+      // Mengembalikan status aset jika proses peminjaman gagal
+      if (assetsChanged && assetIds.length > 0) {
+        try {
+          await prisma.asset.updateMany({
+            where: {
+              id: {
+                in: assetIds,
+              },
+              status: "BORROWED",
+            },
+            data: {
+              status: "AVAILABLE",
+            },
+          });
+        } catch (rollbackError) {
+          console.error(
+            "ERROR ROLLBACK HANDOVER:",
+            rollbackError
+          );
+        }
+      }
+
+      return res.status(500).json({
         pesan: "Terjadi kesalahan pada server",
         data: null,
       });
@@ -466,12 +541,11 @@ router.patch(
   }
 );
 
-
 // PATCH - Pengembalian aset
 router.patch(
   "/:id/return",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...assetStaff),
   async (req, res) => {
     try {
       const {
@@ -511,96 +585,101 @@ router.patch(
         });
       }
 
-      const result = await prisma.$transaction(async (tx) => {
-        const borrowing = await tx.borrowing.findUnique({
-          where: { id: req.params.id },
-        });
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const borrowing = await tx.borrowing.findUnique({
+            where: { id: req.params.id },
+          });
 
-        if (!borrowing) {
-          return { type: "not_found" };
-        }
+          if (!borrowing) {
+            return { type: "not_found" };
+          }
 
-        if (
-          !["BORROWED", "PARTIALLY_RETURNED"].includes(
-            borrowing.status
-          )
-        ) {
-          return { type: "invalid_status" };
-        }
+          if (
+            !["BORROWED", "PARTIALLY_RETURNED"].includes(
+              borrowing.status
+            )
+          ) {
+            return { type: "invalid_status" };
+          }
 
-        const item = await tx.borrowingItem.findFirst({
-          where: {
-            id: itemId,
-            borrowingId: req.params.id,
-          },
-          include: {
-            asset: true,
-          },
-        });
-
-        if (!item) {
-          return { type: "item_not_found" };
-        }
-
-        if (item.returnedAt) {
-          return { type: "already_returned" };
-        }
-
-        if (item.asset.status !== "BORROWED") {
-          return { type: "asset_not_borrowed" };
-        }
-
-        const itemData = {
-          conditionOnReturn: conditionOnReturn.trim(),
-          returnedAt: new Date(),
-        };
-
-        if (notes !== undefined) {
-          itemData.notes = notes?.trim() || null;
-        }
-
-        await tx.borrowingItem.update({
-          where: { id: item.id },
-          data: itemData,
-        });
-
-        await tx.asset.update({
-          where: { id: item.assetId },
-          data: {
-            status: assetStatus,
-            condition: conditionOnReturn.trim(),
-          },
-        });
-
-        const remainingItems = await tx.borrowingItem.count({
-          where: {
-            borrowingId: req.params.id,
-            returnedAt: null,
-          },
-        });
-
-        const updatedBorrowing = await tx.borrowing.update({
-          where: { id: req.params.id },
-          data: {
-            status:
-              remainingItems === 0
-                ? "RETURNED"
-                : "PARTIALLY_RETURNED",
-          },
-          include: {
-            items: {
-              include: {
-                asset: true,
-              },
+          const item = await tx.borrowingItem.findFirst({
+            where: {
+              id: itemId,
+              borrowingId: req.params.id,
             },
-          },
-        });
+            include: {
+              asset: true,
+            },
+          });
 
-        return {
-          type: "success",
-          borrowing: updatedBorrowing,
-        };
-      });
+          if (!item) {
+            return { type: "item_not_found" };
+          }
+
+          if (item.returnedAt) {
+            return { type: "already_returned" };
+          }
+
+          if (item.asset.status !== "BORROWED") {
+            return { type: "asset_not_borrowed" };
+          }
+
+          const itemData = {
+            conditionOnReturn: conditionOnReturn.trim(),
+            returnedAt: new Date(),
+          };
+
+          if (notes !== undefined) {
+            itemData.notes = notes?.trim() || null;
+          }
+
+          await tx.borrowingItem.update({
+            where: { id: item.id },
+            data: itemData,
+          });
+
+          await tx.asset.update({
+            where: { id: item.assetId },
+            data: {
+              status: assetStatus,
+              condition: conditionOnReturn.trim(),
+            },
+          });
+
+          const remainingItems =
+            await tx.borrowingItem.count({
+              where: {
+                borrowingId: req.params.id,
+                returnedAt: null,
+              },
+            });
+
+          const updatedBorrowing =
+            await tx.borrowing.update({
+              where: { id: req.params.id },
+              data: {
+                status:
+                  remainingItems === 0
+                    ? "RETURNED"
+                    : "PARTIALLY_RETURNED",
+              },
+              include: {
+                items: {
+                  include: {
+                    asset: true,
+                  },
+                },
+              },
+            });
+
+          return {
+            type: "success",
+            borrowing: updatedBorrowing,
+          };
+        },
+        transactionOptions
+      );
 
       if (result.type === "not_found") {
         return res.status(404).json({
@@ -637,20 +716,19 @@ router.patch(
         });
       }
 
-      res.json({
+      return res.json({
         pesan: "Pengembalian aset berhasil dicatat",
         data: result.borrowing,
       });
     } catch (error) {
       console.error("ERROR RETURN ASSET:", error);
 
-      res.status(500).json({
+      return res.status(500).json({
         pesan: "Terjadi kesalahan pada server",
         data: null,
       });
     }
   }
 );
-
 
 module.exports = router;
