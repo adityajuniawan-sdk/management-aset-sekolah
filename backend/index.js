@@ -44,7 +44,12 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Jalankan server
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server berjalan pada port ${PORT}`);
-});
+// Jalankan server hanya ketika lokal
+if (require.main === module) {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server berjalan pada port ${PORT}`);
+  });
+}
+
+// Export Express untuk Vercel
+module.exports = app;
