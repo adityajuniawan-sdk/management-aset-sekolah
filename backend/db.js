@@ -1,6 +1,7 @@
 
 const path = require("path");
 const fs = require("fs");
+
 require("dotenv").config({
   path: path.join(__dirname, ".env"),
 });
@@ -22,6 +23,8 @@ const adapter = new PrismaPg({
   },
 });
 
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient({
+  adapter,
+});
 
 module.exports = prisma;
