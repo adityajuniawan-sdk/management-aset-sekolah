@@ -8,12 +8,18 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "build": "npx prisma generate --schema=prisma/schema.prisma"
+    "build": "npx prisma generate --schema=prisma/schema.prisma",
+    "postinstall": "prisma generate --schema=prisma/schema.prisma"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "bcrypt@6.0.0": true,
+    "prisma@7.10.1": true
+  },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
