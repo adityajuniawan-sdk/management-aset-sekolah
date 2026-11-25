@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 function CatalogPage({ title, endpoint, user }) {
   const [items, setItems] = useState([]);
@@ -310,3 +310,4 @@ function CatalogPage({ title, endpoint, user }) {
 }
 
 export default CatalogPage;
+

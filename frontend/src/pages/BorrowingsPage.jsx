@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "../services/api";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const staffRoles = [
   "SUPER_ADMIN",
@@ -568,3 +568,4 @@ function BorrowingsPage({ user, onDataChange }) {
 }
 
 export default BorrowingsPage;
+

@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 function getRoleName(role) {
   if (!role) return "";
@@ -609,3 +609,4 @@ export default function AssetsPage({ user }) {
     </div>
   );
 }
+
