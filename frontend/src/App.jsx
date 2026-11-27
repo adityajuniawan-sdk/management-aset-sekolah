@@ -101,6 +101,7 @@ function getRecentActivities(assets, borrowings) {
 function App() {
   const [user, setUser] = useState(null);
   const [activePage, setActivePage] = useState("Dashboard");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -110,6 +111,14 @@ function App() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
 
   async function loadDashboard() {
     const [assetData, borrowingData] = await Promise.all([
@@ -190,6 +199,7 @@ function App() {
     setPassword("");
     setError("");
     setActivePage("Dashboard");
+    setMenuOpen(false);
   }
 
   const statistics = [
@@ -240,10 +250,10 @@ function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-5">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <form
           onSubmit={handleLogin}
-          className="bg-white w-full max-w-md p-8 rounded-2xl shadow-sm border border-gray-100"
+          className="bg-white w-full max-w-md p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100"
         >
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-[#800020] text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
@@ -322,8 +332,32 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      <aside className="w-64 bg-[#800020] text-white p-6 hidden md:flex md:flex-col">
+    <div className="min-h-screen bg-gray-100 flex overflow-x-hidden">
+
+      {/* Tombol Hamburger Mobile */}
+      <button
+        onClick={() => setMenuOpen((prev) => !prev)}
+        className="md:hidden fixed top-4 left-4 z-[70] bg-[#800020] text-white w-11 h-11 rounded-xl shadow-lg text-xl flex items-center justify-center"
+        aria-label={menuOpen ? "Tutup menu" : "Buka menu"}
+      >
+        {menuOpen ? "✕" : "☰"}
+      </button>
+
+      {/* Overlay Mobile */}
+      {menuOpen && (
+        <button
+          onClick={() => setMenuOpen(false)}
+          className="md:hidden fixed inset-0 bg-black/50 z-50"
+          aria-label="Tutup menu"
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-[60] w-[min(18rem,85vw)] h-dvh overflow-y-auto bg-[#800020] text-white p-5 md:p-6 flex flex-col transform transition-transform duration-300 ease-in-out md:sticky md:top-0 md:translate-x-0 md:h-screen md:w-64 md:shrink-0 ${
+          menuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <div className="mb-10">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-white text-[#800020] rounded-xl flex items-center justify-center shrink-0">
@@ -363,6 +397,8 @@ function App() {
               onClick={() => {
                 setActivePage(item);
                 setError("");
+                setMenuOpen(false);
+                window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               className={`w-full text-left p-3 rounded-lg transition ${
                 activePage === item
@@ -387,12 +423,22 @@ function App() {
           <p className="text-xs text-red-200 mt-1">
             SMK Guna Cipta
           </p>
+
+          <button
+            onClick={handleLogout}
+            className="w-full mt-5 p-3 text-left rounded-lg border border-white/20 hover:bg-white/10 transition text-sm font-semibold"
+          >
+            Keluar dari Aplikasi
+          </button>
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 p-5 md:p-10">
-        <header className="flex flex-wrap justify-between items-center gap-4 mb-10">
-          <div>
+      {/* Konten Utama */}
+      <main className="flex-1 w-full min-w-0 overflow-x-hidden px-4 pb-6 pt-20 sm:px-6 md:p-8 lg:p-10">
+
+        {/* Header */}
+        <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-7 md:mb-10">
+          <div className="min-w-0">
             <p className="text-xs font-semibold tracking-widest text-[#800020] mb-2">
               SNAPASSET / SMK GUNA CIPTA
             </p>
@@ -401,12 +447,12 @@ function App() {
               {activePage}
             </h2>
 
-            <p className="text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 mt-1">
               Sistem Informasi Manajemen Aset Sekolah
             </p>
           </div>
 
-          <div className="bg-white px-5 py-3 rounded-xl shadow-sm border border-gray-100">
+          <div className="bg-white w-full sm:w-auto px-4 py-3 rounded-xl shadow-sm border border-gray-100">
             <p className="font-semibold text-gray-800">
               {user.name}
             </p>
@@ -430,9 +476,10 @@ function App() {
           </p>
         )}
 
+        {/* Dashboard */}
         {activePage === "Dashboard" && (
           <>
-            <section className="bg-[#800020] text-white p-7 md:p-9 rounded-2xl mb-8 shadow-sm">
+            <section className="bg-[#800020] text-white p-5 sm:p-7 md:p-9 rounded-2xl mb-8 shadow-sm">
               <p className="text-xs tracking-widest text-red-100 font-semibold">
                 YAYASAN LEMBAGA GUNA CIPTA
               </p>
@@ -454,7 +501,7 @@ function App() {
               </div>
             </section>
 
-            <section className="mb-8">
+            <section className="mb-6">
               <h3 className="text-lg font-bold text-gray-900">
                 Ringkasan Aset
               </h3>
@@ -464,17 +511,17 @@ function App() {
               </p>
             </section>
 
-            <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            <section className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-5">
               {statistics.map((item) => (
                 <div
                   key={item.title}
-                  className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"
+                  className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 min-w-0"
                 >
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     {item.title}
                   </p>
 
-                  <p className={`text-3xl font-bold mt-3 ${item.color}`}>
+                  <p className={`text-2xl sm:text-3xl font-bold mt-3 ${item.color}`}>
                     {item.value}
                   </p>
 
@@ -485,8 +532,8 @@ function App() {
               ))}
             </section>
 
-            <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-8">
-              <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
+            <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mt-8">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">
                     Aktivitas Terbaru
@@ -513,7 +560,7 @@ function App() {
                   {recentActivities.map((activity) => (
                     <div
                       key={activity.id}
-                      className="flex items-start gap-4 py-4 first:pt-0 last:pb-0"
+                      className="flex items-start gap-3 sm:gap-4 py-4 first:pt-0 last:pb-0"
                     >
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
@@ -550,10 +597,12 @@ function App() {
           </>
         )}
 
+        {/* Halaman Data Aset */}
         {activePage === "Data Aset" && (
           <AssetsPage user={user} />
         )}
 
+        {/* Halaman Kategori */}
         {activePage === "Kategori" && (
           <CatalogPage
             title="Kategori"
@@ -562,6 +611,7 @@ function App() {
           />
         )}
 
+        {/* Halaman Lokasi */}
         {activePage === "Lokasi" && (
           <CatalogPage
             title="Lokasi"
@@ -570,6 +620,7 @@ function App() {
           />
         )}
 
+        {/* Halaman Peminjaman */}
         {activePage === "Peminjaman" && (
           <BorrowingsPage
             user={user}
@@ -577,6 +628,7 @@ function App() {
           />
         )}
 
+        {/* Halaman Pengembalian */}
         {activePage === "Pengembalian" && (
           <ReturnsPage
             user={user}
@@ -584,11 +636,12 @@ function App() {
           />
         )}
 
+        {/* Halaman Laporan */}
         {activePage === "Laporan" && (
           <ReportsPage user={user} />
         )}
 
-        <footer className="text-center text-gray-400 text-xs mt-10">
+        <footer className="text-center text-gray-400 text-xs mt-10 pb-4">
           © 2026 Yayasan Lembaga Guna Cipta • SnapAsset
         </footer>
       </main>
@@ -597,4 +650,3 @@ function App() {
 }
 
 export default App;
-
