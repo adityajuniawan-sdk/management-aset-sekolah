@@ -5,7 +5,7 @@ import { apiRequest } from "../services/api";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const staffRoles = [
-  "SUPER_ADMIN",
+  "ADMIN_SEKOLAH",
   "PETUGAS_ASET",
 ];
 
@@ -17,6 +17,15 @@ const statusLabels = {
   PARTIALLY_RETURNED: "Sebagian Dikembalikan",
   RETURNED: "Selesai",
 };
+
+function getRole(user) {
+  const role =
+    typeof user?.role === "object"
+      ? user.role?.name
+      : user?.role;
+
+  return String(role || "").trim().toUpperCase();
+}
 
 function formatDate(value) {
   if (!value) return "-";
@@ -79,7 +88,13 @@ function BorrowingsPage({ user, onDataChange }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const canProcess = staffRoles.includes(user?.role);
+  const userRole = getRole(user);
+
+  // Admin dan Petugas dapat mengajukan peminjaman.
+  const canApply = staffRoles.includes(userRole);
+
+  // Admin dan Petugas dapat memproses peminjaman.
+  const canProcess = staffRoles.includes(userRole);
 
   async function loadData() {
     setError("");
@@ -115,6 +130,11 @@ function BorrowingsPage({ user, onDataChange }) {
     e.preventDefault();
     setError("");
     setMessage("");
+
+    if (!canApply) {
+      setError("Akun kamu tidak memiliki akses mengajukan peminjaman.");
+      return;
+    }
 
     if (selectedAssets.length === 0) {
       setError("Pilih minimal satu aset yang ingin dipinjam.");
@@ -256,140 +276,150 @@ function BorrowingsPage({ user, onDataChange }) {
         </div>
       )}
 
-      {/* Form Pengajuan */}
-      <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-gray-900">
-            Ajukan Peminjaman
-          </h3>
-
-          <p className="text-sm text-gray-500 mt-1">
-            Isi formulir untuk mengajukan peminjaman aset sekolah.
-          </p>
+      {!canApply && (
+        <div className="bg-blue-50 text-blue-700 p-4 rounded-xl text-sm">
+          Akun Kepala Sekolah memiliki akses untuk melihat daftar
+          dan status peminjaman, tetapi tidak dapat mengajukan
+          atau memproses peminjaman.
         </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Tujuan Peminjaman
-            </label>
+      {/* Form Pengajuan */}
+      {canApply && (
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-gray-900">
+              Ajukan Peminjaman
+            </h3>
 
-            <textarea
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              placeholder="Contoh: Meminjam laptop untuk kegiatan pembelajaran"
-              required
-              rows={3}
-              className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Tanggal Peminjaman
-              </label>
-
-              <input
-                type="date"
-                value={borrowingDate}
-                onChange={(e) => setBorrowingDate(e.target.value)}
-                required
-                className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Tanggal Pengembalian
-              </label>
-
-              <input
-                type="date"
-                value={dueDate}
-                min={borrowingDate || undefined}
-                onChange={(e) => setDueDate(e.target.value)}
-                required
-                className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-3">
-              Pilih Aset
-            </label>
-
-            {availableAssets.length === 0 ? (
-              <p className="bg-gray-50 text-gray-500 p-4 rounded-lg text-sm">
-                Belum ada aset yang tersedia untuk dipinjam.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {availableAssets.map((asset) => (
-                  <label
-                    key={asset.id}
-                    className={`flex items-start gap-3 border rounded-xl p-4 cursor-pointer transition ${
-                      selectedAssets.includes(asset.id)
-                        ? "border-[#800020] bg-red-50"
-                        : "border-gray-200 hover:border-gray-400"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedAssets.includes(asset.id)}
-                      onChange={() => toggleAsset(asset.id)}
-                      className="mt-1 accent-[#800020]"
-                    />
-
-                    <div>
-                      <p className="font-semibold text-sm text-gray-800">
-                        {asset.name}
-                      </p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-                        Kode: {asset.code}
-                      </p>
-
-                      <p className="text-xs text-gray-500">
-                        {asset.category?.name || "Tanpa kategori"}
-                        {" · "}
-                        {asset.location?.name || "Tanpa lokasi"}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <p className="text-xs text-gray-500 mt-2">
-              Aset terpilih: {selectedAssets.length}
+            <p className="text-sm text-gray-500 mt-1">
+              Isi formulir untuk mengajukan peminjaman aset sekolah.
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Catatan (Opsional)
-            </label>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Tujuan Peminjaman
+              </label>
 
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Tambahkan catatan jika diperlukan"
-              rows={2}
-              className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
-            />
-          </div>
+              <textarea
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                placeholder="Contoh: Meminjam laptop untuk kegiatan pembelajaran"
+                required
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={submitting || availableAssets.length === 0}
-            className="bg-[#800020] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#650019] disabled:opacity-50"
-          >
-            {submitting ? "Mengirim..." : "Ajukan Peminjaman"}
-          </button>
-        </form>
-      </section>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Tanggal Peminjaman
+                </label>
+
+                <input
+                  type="date"
+                  value={borrowingDate}
+                  onChange={(e) => setBorrowingDate(e.target.value)}
+                  required
+                  className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Tanggal Pengembalian
+                </label>
+
+                <input
+                  type="date"
+                  value={dueDate}
+                  min={borrowingDate || undefined}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  required
+                  className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-3">
+                Pilih Aset
+              </label>
+
+              {availableAssets.length === 0 ? (
+                <p className="bg-gray-50 text-gray-500 p-4 rounded-lg text-sm">
+                  Belum ada aset yang tersedia untuk dipinjam.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {availableAssets.map((asset) => (
+                    <label
+                      key={asset.id}
+                      className={`flex items-start gap-3 border rounded-xl p-4 cursor-pointer transition ${
+                        selectedAssets.includes(asset.id)
+                          ? "border-[#800020] bg-red-50"
+                          : "border-gray-200 hover:border-gray-400"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAssets.includes(asset.id)}
+                        onChange={() => toggleAsset(asset.id)}
+                        className="mt-1 accent-[#800020]"
+                      />
+
+                      <div>
+                        <p className="font-semibold text-sm text-gray-800">
+                          {asset.name}
+                        </p>
+
+                        <p className="text-xs text-gray-500 mt-1">
+                          Kode: {asset.code}
+                        </p>
+
+                        <p className="text-xs text-gray-500">
+                          {asset.category?.name || "Tanpa kategori"}
+                          {" · "}
+                          {asset.location?.name || "Tanpa lokasi"}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500 mt-2">
+                Aset terpilih: {selectedAssets.length}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Catatan (Opsional)
+              </label>
+
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Tambahkan catatan jika diperlukan"
+                rows={2}
+                className="w-full border border-gray-200 rounded-lg p-3 outline-none focus:border-[#800020]"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting || availableAssets.length === 0}
+              className="bg-[#800020] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#650019] disabled:opacity-50"
+            >
+              {submitting ? "Mengirim..." : "Ajukan Peminjaman"}
+            </button>
+          </form>
+        </section>
+      )}
 
       {/* Daftar Peminjaman */}
       <section className="space-y-5">
@@ -412,7 +442,7 @@ function BorrowingsPage({ user, onDataChange }) {
         ) : (
           borrowings.map((borrowing) => {
             const isOwnRequest =
-              borrowing.borrowerId === user.id;
+              borrowing.borrowerId === user?.id;
 
             const canDecide =
               canProcess &&
@@ -568,4 +598,3 @@ function BorrowingsPage({ user, onDataChange }) {
 }
 
 export default BorrowingsPage;
-

@@ -1,11 +1,9 @@
-
 import { useEffect, useState } from "react";
 import { apiRequest } from "../services/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const staffRoles = [
-  "SUPER_ADMIN",
   "ADMIN_SEKOLAH",
   "PETUGAS_ASET",
 ];
@@ -66,6 +64,9 @@ export default function ReturnsPage({ user, onDataChange }) {
   const [returnForms, setReturnForms] = useState({});
 
   const userRole = getRole(user);
+
+  // Admin dan Petugas dapat mencatat pengembalian.
+  // Kepala Sekolah hanya dapat melihat data.
   const canManage = staffRoles.includes(userRole);
 
   async function loadData() {
@@ -108,11 +109,7 @@ export default function ReturnsPage({ user, onDataChange }) {
       notes: "",
     };
 
-    if (
-      !window.confirm(
-        "Catat pengembalian aset ini?"
-      )
-    ) {
+    if (!window.confirm("Catat pengembalian aset ini?")) {
       return;
     }
 
@@ -193,8 +190,9 @@ export default function ReturnsPage({ user, onDataChange }) {
 
       {!canManage && (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-          Pencatatan pengembalian hanya dapat dilakukan oleh
-          Admin Sekolah, Petugas Aset, atau Super Admin.
+          Akun Kepala Sekolah hanya dapat melihat data
+          pengembalian. Pencatatan pengembalian dilakukan oleh
+          Admin Sekolah atau Petugas Aset.
         </div>
       )}
 
@@ -407,4 +405,3 @@ export default function ReturnsPage({ user, onDataChange }) {
     </div>
   );
 }
-

@@ -1,3 +1,4 @@
+
 const express = require("express");
 const prisma = require("../db");
 const authenticateToken = require("../middleware/auth");
@@ -5,40 +6,56 @@ const authorizeRoles = require("../middleware/authorize");
 
 const router = express.Router();
 
+const viewingRoles = [
+  "ADMIN_SEKOLAH",
+  "PETUGAS_ASET",
+  "KEPALA_SEKOLAH",
+];
+
+const managementRoles = [
+  "ADMIN_SEKOLAH",
+  "PETUGAS_ASET",
+];
+
 // Melihat semua kategori
-router.get("/", authenticateToken, async (req, res) => {
-  try {
-    const categories = await prisma.category.findMany({
-      orderBy: {
-        name: "asc",
-      },
-      include: {
-        _count: {
-          select: {
-            assets: true,
+router.get(
+  "/",
+  authenticateToken,
+  authorizeRoles(...viewingRoles),
+  async (req, res) => {
+    try {
+      const categories = await prisma.category.findMany({
+        orderBy: {
+          name: "asc",
+        },
+        include: {
+          _count: {
+            select: {
+              assets: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    res.json({
-      pesan: "Data kategori berhasil diambil",
-      data: categories,
-    });
-  } catch (error) {
-    console.error("ERROR GET CATEGORY:", error);
-    res.status(500).json({
-      pesan: "Terjadi kesalahan pada server",
-      data: null,
-    });
+      res.json({
+        pesan: "Data kategori berhasil diambil",
+        data: categories,
+      });
+    } catch (error) {
+      console.error("ERROR GET CATEGORY:", error);
+      res.status(500).json({
+        pesan: "Terjadi kesalahan pada server",
+        data: null,
+      });
+    }
   }
-});
+);
 
 // Menambahkan kategori
 router.post(
   "/",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...managementRoles),
   async (req, res) => {
     try {
       const { name, description } = req.body;
@@ -82,7 +99,7 @@ router.post(
 router.patch(
   "/:id",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...managementRoles),
   async (req, res) => {
     try {
       const { name, description } = req.body;
@@ -140,7 +157,7 @@ router.patch(
 router.delete(
   "/:id",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...managementRoles),
   async (req, res) => {
     try {
       await prisma.category.delete({

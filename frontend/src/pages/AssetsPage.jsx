@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -37,8 +36,9 @@ function AssetsPage({ user }) {
   const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
 
+  // Admin dan Petugas dapat mengelola aset.
+  // Kepala Sekolah hanya dapat melihat aset.
   const canManage = [
-    "SUPER_ADMIN",
     "ADMIN_SEKOLAH",
     "PETUGAS_ASET",
   ].includes(user?.role);
@@ -381,15 +381,35 @@ function AssetsPage({ user }) {
             <form onSubmit={handleSubmit} className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <FormField label="Kode Aset *">
-                  <input name="code" value={form.code} onChange={handleChange} required className="form-input" placeholder="Contoh: AST-001" />
+                  <input
+                    name="code"
+                    value={form.code}
+                    onChange={handleChange}
+                    required
+                    className="form-input"
+                    placeholder="Contoh: AST-001"
+                  />
                 </FormField>
 
                 <FormField label="Nama Aset *">
-                  <input name="name" value={form.name} onChange={handleChange} required className="form-input" placeholder="Nama aset" />
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                    className="form-input"
+                    placeholder="Nama aset"
+                  />
                 </FormField>
 
                 <FormField label="Kategori *">
-                  <select name="categoryId" value={form.categoryId} onChange={handleChange} required className="form-input">
+                  <select
+                    name="categoryId"
+                    value={form.categoryId}
+                    onChange={handleChange}
+                    required
+                    className="form-input"
+                  >
                     <option value="">Pilih kategori</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
@@ -400,7 +420,13 @@ function AssetsPage({ user }) {
                 </FormField>
 
                 <FormField label="Lokasi *">
-                  <select name="locationId" value={form.locationId} onChange={handleChange} required className="form-input">
+                  <select
+                    name="locationId"
+                    value={form.locationId}
+                    onChange={handleChange}
+                    required
+                    className="form-input"
+                  >
                     <option value="">Pilih lokasi</option>
                     {locations.map((location) => (
                       <option key={location.id} value={location.id}>
@@ -411,27 +437,65 @@ function AssetsPage({ user }) {
                 </FormField>
 
                 <FormField label="Merek">
-                  <input name="brand" value={form.brand} onChange={handleChange} className="form-input" placeholder="Merek aset" />
+                  <input
+                    name="brand"
+                    value={form.brand}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Merek aset"
+                  />
                 </FormField>
 
                 <FormField label="Nomor Seri">
-                  <input name="serialNumber" value={form.serialNumber} onChange={handleChange} className="form-input" placeholder="Nomor seri" />
+                  <input
+                    name="serialNumber"
+                    value={form.serialNumber}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Nomor seri"
+                  />
                 </FormField>
 
                 <FormField label="Tanggal Perolehan">
-                  <input type="date" name="acquisitionDate" value={form.acquisitionDate} onChange={handleChange} className="form-input" />
+                  <input
+                    type="date"
+                    name="acquisitionDate"
+                    value={form.acquisitionDate}
+                    onChange={handleChange}
+                    className="form-input"
+                  />
                 </FormField>
 
                 <FormField label="Harga Pembelian">
-                  <input type="number" name="purchasePrice" value={form.purchasePrice} onChange={handleChange} min="0" className="form-input" placeholder="Contoh: 2500000" />
+                  <input
+                    type="number"
+                    name="purchasePrice"
+                    value={form.purchasePrice}
+                    onChange={handleChange}
+                    min="0"
+                    className="form-input"
+                    placeholder="Contoh: 2500000"
+                  />
                 </FormField>
 
                 <FormField label="Kondisi">
-                  <input name="condition" value={form.condition} onChange={handleChange} required className="form-input" placeholder="Contoh: BAIK" />
+                  <input
+                    name="condition"
+                    value={form.condition}
+                    onChange={handleChange}
+                    required
+                    className="form-input"
+                    placeholder="Contoh: BAIK"
+                  />
                 </FormField>
 
                 <FormField label="Status">
-                  <select name="status" value={form.status} onChange={handleChange} className="form-input">
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                    className="form-input"
+                  >
                     {statusOptions.map((status) => (
                       <option key={status.value} value={status.value}>
                         {status.label}
@@ -442,7 +506,14 @@ function AssetsPage({ user }) {
 
                 <div className="md:col-span-2">
                   <FormField label="Deskripsi">
-                    <textarea name="description" value={form.description} onChange={handleChange} rows="3" className="form-input" placeholder="Keterangan tambahan aset" />
+                    <textarea
+                      name="description"
+                      value={form.description}
+                      onChange={handleChange}
+                      rows="3"
+                      className="form-input"
+                      placeholder="Keterangan tambahan aset"
+                    />
                   </FormField>
                 </div>
               </div>
@@ -454,12 +525,28 @@ function AssetsPage({ user }) {
               )}
 
               <div className="flex justify-end gap-3 mt-7">
-                <button type="button" onClick={() => setShowForm(false)} className="px-5 py-3 rounded-lg border border-gray-200 text-gray-600">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-5 py-3 rounded-lg border border-gray-200 text-gray-600"
+                >
                   Batal
                 </button>
 
-                <button type="submit" disabled={saving || categories.length === 0 || locations.length === 0} className="px-5 py-3 rounded-lg bg-[#800020] text-white font-semibold hover:bg-[#650019] disabled:opacity-50">
-                  {saving ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "Tambah Aset"}
+                <button
+                  type="submit"
+                  disabled={
+                    saving ||
+                    categories.length === 0 ||
+                    locations.length === 0
+                  }
+                  className="px-5 py-3 rounded-lg bg-[#800020] text-white font-semibold hover:bg-[#650019] disabled:opacity-50"
+                >
+                  {saving
+                    ? "Menyimpan..."
+                    : editingId
+                      ? "Simpan Perubahan"
+                      : "Tambah Aset"}
                 </button>
               </div>
             </form>
@@ -484,4 +571,3 @@ function FormField({ label, children }) {
 }
 
 export default AssetsPage;
-

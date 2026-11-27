@@ -1,14 +1,11 @@
-
 require("dotenv").config();
 
 const prisma = require("./db");
 
 const roles = [
-  "SUPER_ADMIN",
   "ADMIN_SEKOLAH",
   "PETUGAS_ASET",
   "KEPALA_SEKOLAH",
-  "GURU_STAFF",
 ];
 
 async function seedRoles() {
@@ -21,7 +18,7 @@ async function seedRoles() {
       });
     }
 
-    console.log("BERHASIL! 5 ROLE SUDAH DITAMBAHKAN.");
+    console.log("BERHASIL! 3 ROLE SUDAH DIPASTIKAN TERSEDIA.");
 
     const data = await prisma.role.findMany({
       orderBy: { name: "asc" },

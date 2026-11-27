@@ -1,10 +1,20 @@
-
-const authorizeRoles = require("../middleware/authorize");
 const express = require("express");
 const prisma = require("../db");
 const authenticateToken = require("../middleware/auth");
+const authorizeRoles = require("../middleware/authorize");
 
 const router = express.Router();
+
+const viewingRoles = [
+  "ADMIN_SEKOLAH",
+  "PETUGAS_ASET",
+  "KEPALA_SEKOLAH",
+];
+
+const assetStaff = [
+  "ADMIN_SEKOLAH",
+  "PETUGAS_ASET",
+];
 
 const activeStatuses = [
   "PENDING",
@@ -18,225 +28,218 @@ const transactionOptions = {
   timeout: 30000,
 };
 
-const assetStaff = [
-  "SUPER_ADMIN",
-  "ADMIN_SEKOLAH",
-  "PETUGAS_ASET",
-];
-
 // GET - Melihat daftar peminjaman
-router.get("/", authenticateToken, async (req, res) => {
-  try {
-    const staffRoles = [
-      "SUPER_ADMIN",
-      "ADMIN_SEKOLAH",
-      "PETUGAS_ASET",
-      "KEPALA_SEKOLAH",
-    ];
-
-    const where = staffRoles.includes(req.user.role)
-      ? {}
-      : { borrowerId: req.user.id };
-
-    const borrowings = await prisma.borrowing.findMany({
-      where,
-      include: {
-        borrower: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+router.get(
+  "/",
+  authenticateToken,
+  authorizeRoles(...viewingRoles),
+  async (req, res) => {
+    try {
+      const borrowings = await prisma.borrowing.findMany({
+        include: {
+          borrower: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
-        },
-        approver: {
-          select: {
-            id: true,
-            name: true,
+          approver: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        items: {
-          include: {
-            asset: {
-              include: {
-                category: true,
-                location: true,
+          items: {
+            include: {
+              asset: {
+                include: {
+                  category: true,
+                  location: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
 
-    return res.json({
-      pesan: "Data peminjaman berhasil diambil",
-      data: borrowings,
-    });
-  } catch (error) {
-    console.error("ERROR GET BORROWING:", error);
+      return res.json({
+        pesan: "Data peminjaman berhasil diambil",
+        data: borrowings,
+      });
+    } catch (error) {
+      console.error("ERROR GET BORROWING:", error);
 
-    return res.status(500).json({
-      pesan: "Terjadi kesalahan pada server",
-      data: null,
-    });
+      return res.status(500).json({
+        pesan: "Terjadi kesalahan pada server",
+        data: null,
+      });
+    }
   }
-});
+);
 
 // POST - Mengajukan peminjaman
-router.post("/", authenticateToken, async (req, res) => {
-  try {
-    const {
-      purpose,
-      borrowingDate,
-      dueDate,
-      assetIds,
-      notes,
-    } = req.body;
+// Hanya Admin Sekolah dan Petugas Aset
+router.post(
+  "/",
+  authenticateToken,
+  authorizeRoles(...assetStaff),
+  async (req, res) => {
+    try {
+      const {
+        purpose,
+        borrowingDate,
+        dueDate,
+        assetIds,
+        notes,
+      } = req.body;
 
-    if (
-      typeof purpose !== "string" ||
-      !purpose.trim() ||
-      !borrowingDate ||
-      !dueDate ||
-      !Array.isArray(assetIds) ||
-      assetIds.length === 0 ||
-      !assetIds.every(
-        (id) => typeof id === "string" && id.trim()
-      )
-    ) {
-      return res.status(400).json({
-        pesan: "Tujuan, tanggal, dan aset wajib diisi",
-        data: null,
-      });
-    }
+      if (
+        typeof purpose !== "string" ||
+        !purpose.trim() ||
+        !borrowingDate ||
+        !dueDate ||
+        !Array.isArray(assetIds) ||
+        assetIds.length === 0 ||
+        !assetIds.every(
+          (id) => typeof id === "string" && id.trim()
+        )
+      ) {
+        return res.status(400).json({
+          pesan: "Tujuan, tanggal, dan aset wajib diisi",
+          data: null,
+        });
+      }
 
-    if (new Set(assetIds).size !== assetIds.length) {
-      return res.status(400).json({
-        pesan: "Aset yang sama tidak boleh dipilih berulang",
-        data: null,
-      });
-    }
+      if (new Set(assetIds).size !== assetIds.length) {
+        return res.status(400).json({
+          pesan: "Aset yang sama tidak boleh dipilih berulang",
+          data: null,
+        });
+      }
 
-    if (
-      notes !== undefined &&
-      notes !== null &&
-      typeof notes !== "string"
-    ) {
-      return res.status(400).json({
-        pesan: "Catatan harus berupa teks",
-        data: null,
-      });
-    }
+      if (
+        notes !== undefined &&
+        notes !== null &&
+        typeof notes !== "string"
+      ) {
+        return res.status(400).json({
+          pesan: "Catatan harus berupa teks",
+          data: null,
+        });
+      }
 
-    const startDate = new Date(borrowingDate);
-    const endDate = new Date(dueDate);
+      const startDate = new Date(borrowingDate);
+      const endDate = new Date(dueDate);
 
-    if (
-      Number.isNaN(startDate.getTime()) ||
-      Number.isNaN(endDate.getTime()) ||
-      endDate <= startDate
-    ) {
-      return res.status(400).json({
-        pesan: "Tanggal pengembalian harus setelah tanggal peminjaman",
-        data: null,
-      });
-    }
+      if (
+        Number.isNaN(startDate.getTime()) ||
+        Number.isNaN(endDate.getTime()) ||
+        endDate <= startDate
+      ) {
+        return res.status(400).json({
+          pesan: "Tanggal pengembalian harus setelah tanggal peminjaman",
+          data: null,
+        });
+      }
 
-    const result = await prisma.$transaction(
-      async (tx) => {
-        const reservedItems =
-          await tx.borrowingItem.findMany({
-            where: {
-              assetId: { in: assetIds },
-              borrowing: {
-                status: { in: activeStatuses },
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const reservedItems =
+            await tx.borrowingItem.findMany({
+              where: {
+                assetId: { in: assetIds },
+                borrowing: {
+                  status: { in: activeStatuses },
+                },
               },
+              select: {
+                assetId: true,
+              },
+            });
+
+          if (reservedItems.length > 0) {
+            return { type: "reserved" };
+          }
+
+          const availableAssets = await tx.asset.findMany({
+            where: {
+              id: { in: assetIds },
+              status: "AVAILABLE",
             },
             select: {
-              assetId: true,
+              id: true,
             },
           });
 
-        if (reservedItems.length > 0) {
-          return { type: "reserved" };
-        }
+          if (availableAssets.length !== assetIds.length) {
+            return { type: "unavailable" };
+          }
 
-        const availableAssets = await tx.asset.findMany({
-          where: {
-            id: { in: assetIds },
-            status: "AVAILABLE",
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        if (availableAssets.length !== assetIds.length) {
-          return { type: "unavailable" };
-        }
-
-        const borrowing = await tx.borrowing.create({
-          data: {
-            borrowerId: req.user.id,
-            purpose: purpose.trim(),
-            borrowingDate: startDate,
-            dueDate: endDate,
-            notes: notes?.trim() || null,
-            status: "PENDING",
-            items: {
-              create: assetIds.map((assetId) => ({
-                assetId,
-                conditionOnBorrow: "BAIK",
-              })),
-            },
-          },
-          include: {
-            items: {
-              include: {
-                asset: true,
+          const borrowing = await tx.borrowing.create({
+            data: {
+              borrowerId: req.user.id,
+              purpose: purpose.trim(),
+              borrowingDate: startDate,
+              dueDate: endDate,
+              notes: notes?.trim() || null,
+              status: "PENDING",
+              items: {
+                create: assetIds.map((assetId) => ({
+                  assetId,
+                  conditionOnBorrow: "BAIK",
+                })),
               },
             },
-          },
+            include: {
+              items: {
+                include: {
+                  asset: true,
+                },
+              },
+            },
+          });
+
+          return {
+            type: "created",
+            borrowing,
+          };
+        },
+        transactionOptions
+      );
+
+      if (result.type === "reserved") {
+        return res.status(409).json({
+          pesan:
+            "Salah satu aset sedang dalam pengajuan atau peminjaman aktif",
+          data: null,
         });
+      }
 
-        return {
-          type: "created",
-          borrowing,
-        };
-      },
-      transactionOptions
-    );
+      if (result.type === "unavailable") {
+        return res.status(409).json({
+          pesan: "Salah satu aset tidak tersedia",
+          data: null,
+        });
+      }
 
-    if (result.type === "reserved") {
-      return res.status(409).json({
-        pesan:
-          "Salah satu aset sedang dalam pengajuan atau peminjaman aktif",
+      return res.status(201).json({
+        pesan: "Pengajuan peminjaman berhasil dibuat",
+        data: result.borrowing,
+      });
+    } catch (error) {
+      console.error("ERROR CREATE BORROWING:", error);
+
+      return res.status(500).json({
+        pesan: "Terjadi kesalahan pada server",
         data: null,
       });
     }
-
-    if (result.type === "unavailable") {
-      return res.status(409).json({
-        pesan: "Salah satu aset tidak tersedia",
-        data: null,
-      });
-    }
-
-    return res.status(201).json({
-      pesan: "Pengajuan peminjaman berhasil dibuat",
-      data: result.borrowing,
-    });
-  } catch (error) {
-    console.error("ERROR CREATE BORROWING:", error);
-
-    return res.status(500).json({
-      pesan: "Terjadi kesalahan pada server",
-      data: null,
-    });
   }
-});
+);
 
 // PATCH - Menyetujui atau menolak peminjaman
 router.patch(
@@ -511,7 +514,6 @@ router.patch(
     } catch (error) {
       console.error("ERROR HANDOVER:", error);
 
-      // Mengembalikan status aset jika proses peminjaman gagal
       if (assetsChanged && assetIds.length > 0) {
         try {
           await prisma.asset.updateMany({

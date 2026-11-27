@@ -9,3 +9,6 @@ Aplikasi berbasis web untuk mengelola inventaris dan aset sekolah.
 - Prisma ORM
 - JWT Authentication
 - Tailwind CSS
+
+
+https://management-aset-sekolah-65j3.vercel.app

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -19,8 +18,9 @@ function CatalogPage({ title, endpoint, user }) {
       ? user.role?.name
       : user?.role;
 
+  // Admin dan Petugas dapat mengelola kategori dan lokasi.
+  // Kepala Sekolah hanya dapat melihat.
   const canManage = [
-    "SUPER_ADMIN",
     "ADMIN_SEKOLAH",
     "PETUGAS_ASET",
   ].includes(role);
@@ -310,4 +310,3 @@ function CatalogPage({ title, endpoint, user }) {
 }
 
 export default CatalogPage;
-

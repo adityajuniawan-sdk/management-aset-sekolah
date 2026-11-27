@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -59,7 +58,6 @@ export default function AssetsPage({ user }) {
   const userRole = getRoleName(user?.role);
 
   const canManage = [
-    "SUPER_ADMIN",
     "ADMIN_SEKOLAH",
     "PETUGAS_ASET",
   ].includes(userRole);
@@ -256,13 +254,15 @@ export default function AssetsPage({ user }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openAddForm}
-          className="rounded-lg bg-[#800020] px-5 py-3 font-semibold text-white transition hover:bg-[#650019]"
-        >
-          + Tambah Aset
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={openAddForm}
+            className="rounded-lg bg-[#800020] px-5 py-3 font-semibold text-white transition hover:bg-[#650019]"
+          >
+            + Tambah Aset
+          </button>
+        )}
       </div>
 
       {error && (
@@ -404,6 +404,7 @@ export default function AssetsPage({ user }) {
                 type="button"
                 onClick={() => setShowForm(false)}
                 className="text-2xl text-gray-400 hover:text-gray-700"
+                aria-label="Tutup formulir"
               >
                 ×
               </button>
@@ -609,4 +610,3 @@ export default function AssetsPage({ user }) {
     </div>
   );
 }
-

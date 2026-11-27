@@ -1,4 +1,3 @@
-
 const express = require("express");
 const prisma = require("../db");
 const authenticateToken = require("../middleware/auth");
@@ -7,7 +6,6 @@ const authorizeRoles = require("../middleware/authorize");
 const router = express.Router();
 
 const reportRoles = [
-  "SUPER_ADMIN",
   "ADMIN_SEKOLAH",
   "PETUGAS_ASET",
   "KEPALA_SEKOLAH",

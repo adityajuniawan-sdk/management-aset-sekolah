@@ -13,36 +13,52 @@ const assetStatuses = [
   "DAMAGED",
 ];
 
+const managementRoles = [
+  "ADMIN_SEKOLAH",
+  "PETUGAS_ASET",
+];
+
+const viewingRoles = [
+  "ADMIN_SEKOLAH",
+  "PETUGAS_ASET",
+  "KEPALA_SEKOLAH",
+];
+
 // =========================
 // GET - MELIHAT SEMUA ASET
 // =========================
 
-router.get("/", authenticateToken, async (req, res) => {
-  try {
-    const assets = await prisma.asset.findMany({
-      include: {
-        schoolUnit: true,
-        category: true,
-        location: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    });
+router.get(
+  "/",
+  authenticateToken,
+  authorizeRoles(...viewingRoles),
+  async (req, res) => {
+    try {
+      const assets = await prisma.asset.findMany({
+        include: {
+          schoolUnit: true,
+          category: true,
+          location: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
 
-    res.json({
-      pesan: "Data aset berhasil diambil",
-      data: assets,
-    });
-  } catch (error) {
-    console.error("ERROR GET ASSET:", error);
+      res.json({
+        pesan: "Data aset berhasil diambil",
+        data: assets,
+      });
+    } catch (error) {
+      console.error("ERROR GET ASSET:", error);
 
-    res.status(500).json({
-      pesan: "Terjadi kesalahan pada server",
-      data: null,
-    });
+      res.status(500).json({
+        pesan: "Terjadi kesalahan pada server",
+        data: null,
+      });
+    }
   }
-});
+);
 
 // =========================
 // POST - MENAMBAHKAN ASET
@@ -51,7 +67,7 @@ router.get("/", authenticateToken, async (req, res) => {
 router.post(
   "/",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...managementRoles),
   async (req, res) => {
     try {
       const {
@@ -140,7 +156,6 @@ router.post(
         }
       }
 
-      // Cari kategori, lokasi, dan unit SMK.
       const [category, location, schoolUnit] = await Promise.all([
         prisma.category.findUnique({
           where: { id: categoryId },
@@ -181,7 +196,6 @@ router.post(
               : null,
           condition: condition?.trim() || "BAIK",
           status: status || "AVAILABLE",
-
           schoolUnitId: schoolUnit.id,
           categoryId,
           locationId,
@@ -222,7 +236,7 @@ router.post(
 router.patch(
   "/:id",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...managementRoles),
   async (req, res) => {
     try {
       const data = {};
@@ -401,7 +415,7 @@ router.patch(
 router.delete(
   "/:id",
   authenticateToken,
-  authorizeRoles("SUPER_ADMIN", "ADMIN_SEKOLAH", "PETUGAS_ASET"),
+  authorizeRoles(...managementRoles),
   async (req, res) => {
     try {
       await prisma.asset.delete({

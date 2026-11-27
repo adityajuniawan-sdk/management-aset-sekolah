@@ -18,3 +18,5 @@ coverage/
 /backend/seed-admin-test.js
 /backend/seed-petugas-test.js
 /backend/src/
+# Local credentials
+Role Email Password.md
